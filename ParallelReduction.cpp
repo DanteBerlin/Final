@@ -98,8 +98,8 @@ double parallelAverage(const vector<int>& data) {
 }
 
 int main() {
-    vector<int> data = {5, 2, 9, 1, 5, 6, 3, 8, 4, 7};
-    for(int i = 0; i < 1000000; i++){
+    vector<int> data ;
+    for(int i = 0; i < 10000; i++){
         data.push_back(rand() % 1000);
     }
 
