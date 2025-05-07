@@ -1,173 +1,184 @@
 #include <iostream>
 #include <vector>
+#include <queue>
+#include <stack>
 #include <chrono>
 #include <omp.h>
 
 using namespace std;
+using namespace chrono;
 
-int visited[1000];
-int visit[1000];
-int qu[1000], front = 0, rear = 0; 
-int stk[1000], top = -1;
+const int MAX_NODES = 1000;
 
-// Sequential BFS
-void bfs_sequential(int cost[1000][1000], int n, int start_vertex) {
-    fill(visited, visited + n, 0);  // Reset visited array
-    fill(visit, visit + n, 0);      // Reset visit array
-    cout << "Sequential BFS starting from vertex " << start_vertex << ": ";
-    visited[start_vertex] = 1;
-    cout << start_vertex << " ";
-    qu[rear++] = start_vertex;
 
-    while (front < rear) {
-        int v = qu[front++];
+void generateGraph(vector<vector<int>>& adjList, int numNodes) {
+    for (int i = 0; i < numNodes; i ++) {
+        for (int j = 0; j < numNodes; j++){
+            if(rand()%2){
+                adjList[i].push_back(j);
+                adjList[j].push_back(i);
+            }
+        }
+    }
+}
 
-        for (int j = 0; j < n; j++) {
-            if (cost[v][j] != 0 && !visited[j] && !visit[j]) {
-                visit[j] = 1;
-                qu[rear++] = j;
-                cout << j << " ";
-                visited[j] = 1;
+// Function to print the graph as an adjacency list
+void printGraph(const vector<vector<int>>& adjList) {
+    cout << "Graph (Adjacency List Representation):\n";
+    for (size_t i = 0; i < adjList.size(); ++i) {
+        cout << "Node " << i << ": ";
+        for (int neighbor : adjList[i]) {
+            cout << neighbor << " ";
+        }
+        cout << endl;
+    }
+    cout << endl;
+}
+
+void bfsSequential(const vector<vector<int>>& adjList, int startNode) {
+    vector<bool> visited(adjList.size(), false);
+    queue<int> q;
+    q.push(startNode);
+    visited[startNode] = true;
+
+    cout << "BFS Sequential Order: ";
+    while (!q.empty()) {
+        int node = q.front();
+        q.pop();
+        // cout << node << " ";  // Print visited node
+        int k = 0;
+        for(int i : adjList[node]){
+            k += i;
+        }
+        for (int neighbor : adjList[node]) {
+            if (!visited[neighbor]) {
+                visited[neighbor] = true;
+                q.push(neighbor);
             }
         }
     }
     cout << endl;
 }
 
-// Parallel BFS
-void bfs_parallel(int cost[1000][1000], int n, int start_vertex) {
-    fill(visited, visited + n, 0);  // Reset visited array
-    fill(visit, visit + n, 0);      // Reset visit array
-    cout << "Parallel BFS starting from vertex " << start_vertex << ": ";
-    visited[start_vertex] = 1;
-    cout << start_vertex << " ";
-    qu[rear++] = start_vertex;
+void dfsSequential(const vector<vector<int>>& adjList, int startNode) {
+    vector<bool> visited(adjList.size(), false);
+    stack<int> s;
+    s.push(startNode);
+    visited[startNode] = true;
 
-    while (front < rear) {
-        int v = qu[front++];
+    cout << "DFS Sequential Order: ";
+    while (!s.empty()) {
+        int node = s.top();
+        s.pop();
+        // cout << node << " ";  // Print visited node
+        int k = 0;
+        for(int i : adjList[node]){
+            k += i;
+        }
+        for (int neighbor : adjList[node]) {
+            if (!visited[neighbor]) {
+                visited[neighbor] = true;
+                s.push(neighbor);
+            }
+        }
+    }
+    cout << endl;
+}
 
-        #pragma omp parallel for
-        for (int j = 0; j < n; j++) {
-            if (cost[v][j] != 0 && !visited[j] && !visit[j]) {
+void bfsParallel(const vector<vector<int>>& adjList, int startNode) {
+    vector<bool> visited(adjList.size(), false);
+    queue<int> q;
+    q.push(startNode);
+    visited[startNode] = true;
+
+    cout << "BFS Parallel Order: ";
+    // Parallelize the marking of visited nodes
+    #pragma omp parallel
+    while (!q.empty()) {
+        int node = q.front();
+        q.pop();
+        // cout << node << " ";  // Print visited node
+
+            #pragma omp parallel for
+            for (size_t i = 0; i < adjList[node].size(); ++i) {
+                int neighbor = adjList[node][i];
                 #pragma omp critical
                 {
-                    visit[j] = 1;
-                    qu[rear++] = j;
-                    cout << j << " ";
-                    visited[j] = 1;
+                    if (!visited[neighbor]) {
+                        visited[neighbor] = true;
+                        q.push(neighbor);
+                    }
                 }
             }
-        }
     }
     cout << endl;
 }
 
-// Sequential DFS
-void dfs_sequential(int cost[1000][1000], int n, int start_vertex) {
-    fill(visited, visited + n, 0);  
-    fill(visit, visit + n, 0);     
-    cout << "Sequential DFS starting from vertex " << start_vertex << ": ";
-    visited[start_vertex] = 1;
-    cout << start_vertex << " ";
-    stk[++top] = start_vertex;
+void dfsParallel(const vector<vector<int>>& adjList, int startNode) {
+    vector<bool> visited(adjList.size(), false);
+    stack<int> s;
+    s.push(startNode);
+    visited[startNode] = true;
 
-    while (top >= 0) {
-        int v = stk[top--];
-
-        for (int j = n - 1; j >= 0; j--) {
-            if (cost[v][j] != 0 && !visited[j] && !visit[j]) {
-                visit[j] = 1;
-                stk[++top] = j;
-                cout << j << " ";
-                visited[j] = 1;
-            }
-        }
-    }
-    cout << endl;
-}
-
-// Parallel DFS
-void dfs_parallel(int cost[1000][1000], int n, int start_vertex) {
-    fill(visited, visited + n, 0);  
-    fill(visit, visit + n, 0);      
-    cout << "Parallel DFS starting from vertex " << start_vertex << ": ";
-    visited[start_vertex] = 1;
-    cout << start_vertex << " ";
-    stk[++top] = start_vertex;
-
-    while (top >= 0) {
-        int v = stk[top--];
-
-        #pragma omp parallel for
-        for (int j = n - 1; j >= 0; j--) {
-            if (cost[v][j] != 0 && !visited[j] && !visit[j]) {
+    cout << "DFS Parallel Order: ";
+    // Parallelize the marking of visited nodes
+    #pragma omp parallel
+    while (!s.empty()) {
+        int node = s.top();
+        s.pop();
+        // cout << node << " ";  // Print visited node
+            #pragma omp parallel for
+            for (size_t i = 0; i < adjList[node].size(); ++i) {
+                int neighbor = adjList[node][i];
                 #pragma omp critical
                 {
-                    visit[j] = 1;
-                    stk[++top] = j;
-                    cout << j << " ";
-                    visited[j] = 1;
+                    if (!visited[neighbor]) {
+                        visited[neighbor] = true;
+                        s.push(neighbor);
+                    }
                 }
             }
-        }
     }
     cout << endl;
 }
 
 int main() {
-    int n = 1000;
-     int cost[1000][1000]; 
-       for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {  
-            int edge = rand() % 2;  
-            cost[i][j] = edge;
-            cost[j][i] = edge;  
-        }
-        }
+    int nodes = 100;
+    cout << "enter : ";
+cin >> nodes;
+    vector<vector<int>> adjList(nodes);
+    generateGraph(adjList, nodes);
 
-    int start_vertex;
-    
-    // BFS
-    cout << "Enter initial vertex for Sequential BFS: ";
-    cin >> start_vertex;
-    auto start_time_bfs_seq = chrono::high_resolution_clock::now();
-    bfs_sequential(cost, n, start_vertex);
-    auto end_time_bfs_seq = chrono::high_resolution_clock::now();
-    cout << "Time taken for Sequential BFS: " 
-         << chrono::duration_cast<chrono::microseconds>(end_time_bfs_seq - start_time_bfs_seq).count() 
-         << " microseconds" << endl;
+    // Print the generated graph
+    // printGraph(adjList);
 
-    cout << "Enter initial vertex for Parallel BFS: ";
-    cin >> start_vertex;
-    auto start_time_bfs_par = chrono::high_resolution_clock::now();
-    bfs_parallel(cost, n, start_vertex);
-    auto end_time_bfs_par = chrono::high_resolution_clock::now();
-    cout << "Time taken for Parallel BFS: " 
-         << chrono::duration_cast<chrono::microseconds>(end_time_bfs_par - start_time_bfs_par).count() 
-         << " microseconds" << endl;
-cout<<"speed up "<<(chrono::duration_cast<chrono::microseconds>(end_time_bfs_seq - start_time_bfs_seq).count())/(chrono::duration_cast<chrono::microseconds>(end_time_bfs_par - start_time_bfs_par).count() )<<endl;
-    // DFS
-    cout << "Enter initial vertex for Sequential DFS: ";
-    cin >> start_vertex;
-    auto start_time_dfs_seq = chrono::high_resolution_clock::now();
-    dfs_sequential(cost, n, start_vertex);
-    auto end_time_dfs_seq = chrono::high_resolution_clock::now();
-    cout << "Time taken for Sequential DFS: " 
-         << chrono::duration_cast<chrono::microseconds>(end_time_dfs_seq - start_time_dfs_seq).count() 
-         << " microseconds" << endl;
+    auto start = high_resolution_clock::now();
+    bfsSequential(adjList, 0);
+    auto end = high_resolution_clock::now();
+    double duration_seq = duration_cast<nanoseconds>(end - start).count();
+    cout << "BFS Sequential Time Taken: " << duration_seq << " ns" << endl << endl;
 
-    cout << "Enter initial vertex for Parallel DFS: ";
-    cin >> start_vertex;
-    auto start_time_dfs_par = chrono::high_resolution_clock::now();
-    dfs_parallel(cost, n, start_vertex);
-    auto end_time_dfs_par = chrono::high_resolution_clock::now();
-    cout << "Time taken for Parallel DFS: " << chrono::duration_cast<chrono::microseconds>(end_time_dfs_par - start_time_dfs_par).count() << " microseconds" << endl;
-double speed_up_bfs = static_cast<double>(chrono::duration_cast<chrono::microseconds>(end_time_bfs_seq - start_time_bfs_seq).count()) / 
-                      chrono::duration_cast<chrono::microseconds>(end_time_bfs_par - start_time_bfs_par).count();
-cout << "Speed up for BFS: " << speed_up_bfs << endl;
+    start = high_resolution_clock::now();
+    bfsParallel(adjList, 0);
+    end = high_resolution_clock::now();
+    double duration_par = duration_cast<nanoseconds>(end - start).count();
+    cout << "BFS Parallel Time Taken: " << duration_par << " ns" << endl << endl;
 
-double speed_up_dfs = static_cast<double>(chrono::duration_cast<chrono::microseconds>(end_time_dfs_seq - start_time_dfs_seq).count()) / 
-                      chrono::duration_cast<chrono::microseconds>(end_time_dfs_par - start_time_dfs_par).count();
-cout << "Speed up for DFS: " << speed_up_dfs << endl;
+    cout << "Speedup Factor for BFS: " << duration_seq / duration_par << "\n\n";
+
+    start = high_resolution_clock::now();
+    dfsSequential(adjList, 0);
+    end = high_resolution_clock::now();
+    duration_seq = duration_cast<nanoseconds>(end - start).count();
+    cout << "DFS Sequential Time Taken: " << duration_seq << " ns" << endl << endl;
+
+    start = high_resolution_clock::now();
+    dfsParallel(adjList, 0);
+    end = high_resolution_clock::now();
+    duration_par = duration_cast<nanoseconds>(end - start).count();
+    cout << "DFS Parallel Time Taken: " << duration_par << " ns" << endl << endl;
+
+    cout << "Speedup Factor for DFS: " << duration_seq / duration_par << "\n\n";
+
     return 0;
 }
